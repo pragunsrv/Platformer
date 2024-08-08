@@ -12,13 +12,17 @@ PLAYER_HEIGHT = 50
 PLAYER_COLOR = (0, 128, 255)
 PLATFORM_COLOR = (255, 0, 0)
 ENEMY_COLOR = (255, 255, 0)
+COLLECTIBLE_COLOR = (0, 255, 0)
 BACKGROUND_COLOR = (0, 0, 0)
 GRAVITY = 0.5
 JUMP_STRENGTH = 10
 
 # Set up the display
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Platformer Game - Version 4")
+pygame.display.set_caption("Platformer Game - Version 5")
+
+# Font for displaying score
+font = pygame.font.Font(None, 36)
 
 # Player class
 class Player(pygame.sprite.Sprite):
@@ -30,6 +34,7 @@ class Player(pygame.sprite.Sprite):
         self.rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
         self.vel_y = 0
         self.on_ground = False
+        self.score = 0
 
     def update(self):
         self.vel_y += GRAVITY
@@ -51,6 +56,7 @@ class Player(pygame.sprite.Sprite):
 
         self.check_platform_collisions()
         self.check_enemy_collisions()
+        self.check_collectible_collisions()
 
     def check_platform_collisions(self):
         hits = pygame.sprite.spritecollide(self, platforms, False)
@@ -64,6 +70,11 @@ class Player(pygame.sprite.Sprite):
         if hits:
             self.rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
             self.vel_y = 0
+
+    def check_collectible_collisions(self):
+        hits = pygame.sprite.spritecollide(self, collectibles, True)
+        for hit in hits:
+            self.score += 1
 
 # Platform class
 class Platform(pygame.sprite.Sprite):
@@ -80,6 +91,15 @@ class Enemy(pygame.sprite.Sprite):
         super().__init__()
         self.image = pygame.Surface((width, height))
         self.image.fill(ENEMY_COLOR)
+        self.rect = self.image.get_rect()
+        self.rect.topleft = (x, y)
+
+# Collectible class
+class Collectible(pygame.sprite.Sprite):
+    def __init__(self, x, y, width, height):
+        super().__init__()
+        self.image = pygame.Surface((width, height))
+        self.image.fill(COLLECTIBLE_COLOR)
         self.rect = self.image.get_rect()
         self.rect.topleft = (x, y)
 
@@ -103,6 +123,15 @@ enemies = pygame.sprite.Group()
 enemy1 = Enemy(500, 500, 50, 50)
 enemies.add(enemy1)
 all_sprites.add(enemy1)
+
+# Create collectibles
+collectibles = pygame.sprite.Group()
+collectible1 = Collectible(300, 350, 30, 30)
+collectible2 = Collectible(700, 200, 30, 30)
+collectible3 = Collectible(1100, 300, 30, 30)
+collectible4 = Collectible(1500, 400, 30, 30)
+collectibles.add(collectible1, collectible2, collectible3, collectible4)
+all_sprites.add(collectible1, collectible2, collectible3, collectible4)
 
 # Camera class
 class Camera:
@@ -141,6 +170,10 @@ while running:
     screen.fill(BACKGROUND_COLOR)
     for entity in all_sprites:
         screen.blit(entity.image, camera.apply(entity))
+
+    # Display the score
+    score_text = font.render(f"Score: {player.score}", True, (255, 255, 255))
+    screen.blit(score_text, (10, 10))
 
     pygame.display.flip()
     clock.tick(60)
