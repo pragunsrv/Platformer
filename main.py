@@ -16,12 +16,13 @@ COLLECTIBLE_COLOR = (0, 255, 0)
 BACKGROUND_COLOR = (0, 0, 0)
 GRAVITY = 0.5
 JUMP_STRENGTH = 10
+LEVEL_WIDTH = 2000  # Width of each level
 
 # Set up the display
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Platformer Game - Version 5")
+pygame.display.set_caption("Platformer Game - Version 6")
 
-# Font for displaying score
+# Font for displaying score and level
 font = pygame.font.Font(None, 36)
 
 # Player class
@@ -57,6 +58,7 @@ class Player(pygame.sprite.Sprite):
         self.check_platform_collisions()
         self.check_enemy_collisions()
         self.check_collectible_collisions()
+        self.check_level_transition()
 
     def check_platform_collisions(self):
         hits = pygame.sprite.spritecollide(self, platforms, False)
@@ -75,6 +77,15 @@ class Player(pygame.sprite.Sprite):
         hits = pygame.sprite.spritecollide(self, collectibles, True)
         for hit in hits:
             self.score += 1
+
+    def check_level_transition(self):
+        if self.rect.right > SCREEN_WIDTH - 50:
+            if current_level == 1:
+                start_level(2)
+            elif current_level == 2:
+                print("You completed the game!")
+                pygame.quit()
+                sys.exit()
 
 # Platform class
 class Platform(pygame.sprite.Sprite):
@@ -103,35 +114,54 @@ class Collectible(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.topleft = (x, y)
 
-# Create a player instance
+# Function to start a new level
+def start_level(level):
+    global current_level
+    current_level = level
+    all_sprites.empty()
+    platforms.empty()
+    enemies.empty()
+    collectibles.empty()
+    if level == 1:
+        # Level 1
+        platforms.add(Platform(100, 400, 200, 20))
+        platforms.add(Platform(400, 300, 200, 20))
+        platforms.add(Platform(800, 250, 200, 20))
+        platforms.add(Platform(1200, 350, 200, 20))
+        platforms.add(Platform(1600, 450, 200, 20))
+        all_sprites.add(*platforms)
+        enemies.add(Enemy(500, 500, 50, 50))
+        all_sprites.add(*enemies)
+        collectibles.add(Collectible(300, 350, 30, 30))
+        collectibles.add(Collectible(700, 200, 30, 30))
+        collectibles.add(Collectible(1100, 300, 30, 30))
+        collectibles.add(Collectible(1500, 400, 30, 30))
+        all_sprites.add(*collectibles)
+    elif level == 2:
+        # Level 2 (more complex or different layout)
+        platforms.add(Platform(100, 500, 200, 20))
+        platforms.add(Platform(400, 400, 200, 20))
+        platforms.add(Platform(800, 300, 200, 20))
+        platforms.add(Platform(1200, 200, 200, 20))
+        platforms.add(Platform(1600, 100, 200, 20))
+        all_sprites.add(*platforms)
+        enemies.add(Enemy(500, 550, 50, 50))
+        enemies.add(Enemy(1000, 350, 50, 50))
+        all_sprites.add(*enemies)
+        collectibles.add(Collectible(300, 450, 30, 30))
+        collectibles.add(Collectible(700, 250, 30, 30))
+        collectibles.add(Collectible(1100, 200, 30, 30))
+        collectibles.add(Collectible(1500, 150, 30, 30))
+        all_sprites.add(*collectibles)
+
+# Initialize level
+current_level = 1
 player = Player()
 all_sprites = pygame.sprite.Group()
 all_sprites.add(player)
 
-# Create platforms
-platforms = pygame.sprite.Group()
-platform1 = Platform(100, 400, 200, 20)
-platform2 = Platform(400, 300, 200, 20)
-platform3 = Platform(800, 250, 200, 20)
-platform4 = Platform(1200, 350, 200, 20)
-platform5 = Platform(1600, 450, 200, 20)
-platforms.add(platform1, platform2, platform3, platform4, platform5)
-all_sprites.add(platform1, platform2, platform3, platform4, platform5)
-
-# Create enemies
-enemies = pygame.sprite.Group()
-enemy1 = Enemy(500, 500, 50, 50)
-enemies.add(enemy1)
-all_sprites.add(enemy1)
-
-# Create collectibles
-collectibles = pygame.sprite.Group()
-collectible1 = Collectible(300, 350, 30, 30)
-collectible2 = Collectible(700, 200, 30, 30)
-collectible3 = Collectible(1100, 300, 30, 30)
-collectible4 = Collectible(1500, 400, 30, 30)
-collectibles.add(collectible1, collectible2, collectible3, collectible4)
-all_sprites.add(collectible1, collectible2, collectible3, collectible4)
+# Start the first level
+start_level(1)
 
 # Camera class
 class Camera:
@@ -153,7 +183,7 @@ class Camera:
         self.camera = pygame.Rect(x, y, self.width, self.height)
 
 # Create a camera instance
-camera = Camera(2000, 600)
+camera = Camera(LEVEL_WIDTH, SCREEN_HEIGHT)
 
 # Main game loop
 running = True
@@ -171,9 +201,11 @@ while running:
     for entity in all_sprites:
         screen.blit(entity.image, camera.apply(entity))
 
-    # Display the score
+    # Display the score and level
     score_text = font.render(f"Score: {player.score}", True, (255, 255, 255))
+    level_text = font.render(f"Level: {current_level}", True, (255, 255, 255))
     screen.blit(score_text, (10, 10))
+    screen.blit(level_text, (10, 50))
 
     pygame.display.flip()
     clock.tick(60)
