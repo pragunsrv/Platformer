@@ -11,14 +11,14 @@ PLAYER_WIDTH = 50
 PLAYER_HEIGHT = 50
 PLAYER_COLOR = (0, 128, 255)
 PLATFORM_COLOR = (255, 0, 0)
+ENEMY_COLOR = (255, 255, 0)
 BACKGROUND_COLOR = (0, 0, 0)
 GRAVITY = 0.5
 JUMP_STRENGTH = 10
-SCROLL_THRESHOLD = 200
 
 # Set up the display
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Platformer Game - Version 3")
+pygame.display.set_caption("Platformer Game - Version 4")
 
 # Player class
 class Player(pygame.sprite.Sprite):
@@ -50,6 +50,7 @@ class Player(pygame.sprite.Sprite):
             self.on_ground = False
 
         self.check_platform_collisions()
+        self.check_enemy_collisions()
 
     def check_platform_collisions(self):
         hits = pygame.sprite.spritecollide(self, platforms, False)
@@ -58,12 +59,27 @@ class Player(pygame.sprite.Sprite):
             self.on_ground = True
             self.vel_y = 0
 
+    def check_enemy_collisions(self):
+        hits = pygame.sprite.spritecollide(self, enemies, False)
+        if hits:
+            self.rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
+            self.vel_y = 0
+
 # Platform class
 class Platform(pygame.sprite.Sprite):
     def __init__(self, x, y, width, height):
         super().__init__()
         self.image = pygame.Surface((width, height))
         self.image.fill(PLATFORM_COLOR)
+        self.rect = self.image.get_rect()
+        self.rect.topleft = (x, y)
+
+# Enemy class
+class Enemy(pygame.sprite.Sprite):
+    def __init__(self, x, y, width, height):
+        super().__init__()
+        self.image = pygame.Surface((width, height))
+        self.image.fill(ENEMY_COLOR)
         self.rect = self.image.get_rect()
         self.rect.topleft = (x, y)
 
@@ -81,6 +97,12 @@ platform4 = Platform(1200, 350, 200, 20)
 platform5 = Platform(1600, 450, 200, 20)
 platforms.add(platform1, platform2, platform3, platform4, platform5)
 all_sprites.add(platform1, platform2, platform3, platform4, platform5)
+
+# Create enemies
+enemies = pygame.sprite.Group()
+enemy1 = Enemy(500, 500, 50, 50)
+enemies.add(enemy1)
+all_sprites.add(enemy1)
 
 # Camera class
 class Camera:
