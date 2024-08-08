@@ -13,23 +13,23 @@ PLAYER_HEIGHT = 50
 PLAYER_COLOR = (0, 128, 255)
 PLATFORM_COLOR = (255, 0, 0)
 ENEMY_COLOR = (255, 255, 0)
-JUMPING_ENEMY_COLOR = (255, 0, 255)
+BOSS_COLOR = (255, 0, 0)
 COLLECTIBLE_COLOR = (0, 255, 0)
 BACKGROUND_COLOR = (0, 0, 0)
 PLATFORM_MOVE_SPEED = 2
 GRAVITY = 0.5
 JUMP_STRENGTH = 10
-LEVEL_WIDTH = 2000  # Width of each level
+LEVEL_WIDTH = 3000  # Width of each level
 
 # Set up the display
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Platformer Game - Version 9")
+pygame.display.set_caption("Platformer Game - Version 10")
 
 # Load and set up the background image
 background = pygame.image.load('background.png')  # Use an actual image file in practice
 background = pygame.transform.scale(background, (LEVEL_WIDTH, SCREEN_HEIGHT))
 
-# Font for displaying score and level
+# Font for displaying score, level, and health
 font = pygame.font.Font(None, 36)
 
 # Player class
@@ -43,6 +43,7 @@ class Player(pygame.sprite.Sprite):
         self.vel_y = 0
         self.on_ground = False
         self.score = 0
+        self.health = 100  # Player health
 
     def update(self):
         self.vel_y += GRAVITY
@@ -65,6 +66,7 @@ class Player(pygame.sprite.Sprite):
         self.check_platform_collisions()
         self.check_enemy_collisions()
         self.check_collectible_collisions()
+        self.check_boss_collisions()
         self.check_level_transition()
 
     def check_platform_collisions(self):
@@ -77,13 +79,24 @@ class Player(pygame.sprite.Sprite):
     def check_enemy_collisions(self):
         hits = pygame.sprite.spritecollide(self, enemies, False)
         if hits:
-            self.rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
-            self.vel_y = 0
+            self.health -= 10
+            if self.health <= 0:
+                self.rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
+                self.health = 100
 
     def check_collectible_collisions(self):
         hits = pygame.sprite.spritecollide(self, collectibles, True)
         for hit in hits:
             self.score += 1
+
+    def check_boss_collisions(self):
+        hits = pygame.sprite.spritecollide(self, bosses, False)
+        if hits:
+            self.health -= 20
+            if self.health <= 0:
+                print("You defeated the boss!")
+                pygame.quit()
+                sys.exit()
 
     def check_level_transition(self):
         if self.rect.right > SCREEN_WIDTH - 50:
@@ -118,30 +131,22 @@ class Platform(pygame.sprite.Sprite):
             if self.rect.top <= 0 or self.rect.bottom >= SCREEN_HEIGHT:
                 self.direction *= -1
 
-# Basic Enemy class
-class Enemy(pygame.sprite.Sprite):
-    def __init__(self, x, y, width, height, color, move_type='horizontal'):
+# Boss class
+class Boss(pygame.sprite.Sprite):
+    def __init__(self, x, y, width, height):
         super().__init__()
         self.image = pygame.Surface((width, height))
-        self.image.fill(color)
+        self.image.fill(BOSS_COLOR)
         self.rect = self.image.get_rect()
         self.rect.topleft = (x, y)
+        self.health = 500
+        self.move_speed = 2
         self.direction = 1  # 1 for right, -1 for left
-        self.speed = 2
-        self.move_type = move_type
-        self.jump_height = 100
-        self.jump_speed = 5
-        self.initial_y = y
 
     def update(self):
-        if self.move_type == 'horizontal':
-            self.rect.x += self.direction * self.speed
-            if self.rect.left <= 0 or self.rect.right >= LEVEL_WIDTH:
-                self.direction *= -1
-        elif self.move_type == 'vertical':
-            if self.rect.y <= self.initial_y - self.jump_height or self.rect.y >= self.initial_y:
-                self.jump_speed *= -1
-            self.rect.y += self.jump_speed
+        self.rect.x += self.direction * self.move_speed
+        if self.rect.left <= 0 or self.rect.right >= LEVEL_WIDTH:
+            self.direction *= -1
 
 # Collectible class
 class Collectible(pygame.sprite.Sprite):
@@ -160,6 +165,7 @@ def start_level(level):
     platforms.empty()
     enemies.empty()
     collectibles.empty()
+    bosses.empty()
     if level == 1:
         # Level 1
         platforms.add(Platform(100, 400, 200, 20))
@@ -176,6 +182,8 @@ def start_level(level):
         collectibles.add(Collectible(1100, 300, 30, 30))
         collectibles.add(Collectible(1500, 400, 30, 30))
         all_sprites.add(*collectibles)
+        bosses.add(Boss(2000, 300, 100, 100))
+        all_sprites.add(*bosses)
     elif level == 2:
         # Level 2 (more complex or different layout)
         platforms.add(Platform(100, 500, 200, 20))
@@ -192,6 +200,8 @@ def start_level(level):
         collectibles.add(Collectible(1100, 200, 30, 30))
         collectibles.add(Collectible(1500, 150, 30, 30))
         all_sprites.add(*collectibles)
+        bosses.add(Boss(2500, 400, 100, 100))
+        all_sprites.add(*bosses)
 
 # Initialize level
 current_level = 1
@@ -240,11 +250,13 @@ while running:
     for entity in all_sprites:
         screen.blit(entity.image, camera.apply(entity))
 
-    # Display the score and level
+    # Display the score, level, and health
     score_text = font.render(f"Score: {player.score}", True, (255, 255, 255))
     level_text = font.render(f"Level: {current_level}", True, (255, 255, 255))
+    health_text = font.render(f"Health: {player.health}", True, (255, 255, 255))
     screen.blit(score_text, (10, 10))
     screen.blit(level_text, (10, 50))
+    screen.blit(health_text, (10, 90))
 
     pygame.display.flip()
     clock.tick(60)
