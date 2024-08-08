@@ -1,5 +1,6 @@
 import pygame
 import sys
+import random
 
 # Initialize Pygame
 pygame.init()
@@ -12,6 +13,7 @@ PLAYER_HEIGHT = 50
 PLAYER_COLOR = (0, 128, 255)
 PLATFORM_COLOR = (255, 0, 0)
 ENEMY_COLOR = (255, 255, 0)
+JUMPING_ENEMY_COLOR = (255, 0, 255)
 COLLECTIBLE_COLOR = (0, 255, 0)
 BACKGROUND_COLOR = (0, 0, 0)
 GRAVITY = 0.5
@@ -20,7 +22,7 @@ LEVEL_WIDTH = 2000  # Width of each level
 
 # Set up the display
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Platformer Game - Version 7")
+pygame.display.set_caption("Platformer Game - Version 8")
 
 # Font for displaying score and level
 font = pygame.font.Font(None, 36)
@@ -96,21 +98,30 @@ class Platform(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.topleft = (x, y)
 
-# Enemy class with basic AI
+# Basic Enemy class
 class Enemy(pygame.sprite.Sprite):
-    def __init__(self, x, y, width, height):
+    def __init__(self, x, y, width, height, color, move_type='horizontal'):
         super().__init__()
         self.image = pygame.Surface((width, height))
-        self.image.fill(ENEMY_COLOR)
+        self.image.fill(color)
         self.rect = self.image.get_rect()
         self.rect.topleft = (x, y)
         self.direction = 1  # 1 for right, -1 for left
         self.speed = 2
+        self.move_type = move_type
+        self.jump_height = 100
+        self.jump_speed = 5
+        self.initial_y = y
 
     def update(self):
-        self.rect.x += self.direction * self.speed
-        if self.rect.left <= 0 or self.rect.right >= LEVEL_WIDTH:
-            self.direction *= -1
+        if self.move_type == 'horizontal':
+            self.rect.x += self.direction * self.speed
+            if self.rect.left <= 0 or self.rect.right >= LEVEL_WIDTH:
+                self.direction *= -1
+        elif self.move_type == 'vertical':
+            if self.rect.y <= self.initial_y - self.jump_height or self.rect.y >= self.initial_y:
+                self.jump_speed *= -1
+            self.rect.y += self.jump_speed
 
 # Collectible class
 class Collectible(pygame.sprite.Sprite):
@@ -137,7 +148,8 @@ def start_level(level):
         platforms.add(Platform(1200, 350, 200, 20))
         platforms.add(Platform(1600, 450, 200, 20))
         all_sprites.add(*platforms)
-        enemies.add(Enemy(500, 500, 50, 50))
+        enemies.add(Enemy(500, 500, 50, 50, ENEMY_COLOR, 'horizontal'))
+        enemies.add(Enemy(700, 300, 50, 50, JUMPING_ENEMY_COLOR, 'vertical'))
         all_sprites.add(*enemies)
         collectibles.add(Collectible(300, 350, 30, 30))
         collectibles.add(Collectible(700, 200, 30, 30))
@@ -152,8 +164,8 @@ def start_level(level):
         platforms.add(Platform(1200, 200, 200, 20))
         platforms.add(Platform(1600, 100, 200, 20))
         all_sprites.add(*platforms)
-        enemies.add(Enemy(500, 550, 50, 50))
-        enemies.add(Enemy(1000, 350, 50, 50))
+        enemies.add(Enemy(500, 550, 50, 50, ENEMY_COLOR, 'horizontal'))
+        enemies.add(Enemy(1000, 350, 50, 50, JUMPING_ENEMY_COLOR, 'vertical'))
         all_sprites.add(*enemies)
         collectibles.add(Collectible(300, 450, 30, 30))
         collectibles.add(Collectible(700, 250, 30, 30))
