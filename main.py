@@ -15,21 +15,23 @@ PLATFORM_COLOR = (255, 0, 0)
 ENEMY_COLOR = (255, 255, 0)
 BOSS_COLOR = (255, 0, 0)
 COLLECTIBLE_COLOR = (0, 255, 0)
+POWER_UP_COLOR = (0, 255, 255)
 BACKGROUND_COLOR = (0, 0, 0)
 PLATFORM_MOVE_SPEED = 2
 GRAVITY = 0.5
 JUMP_STRENGTH = 10
 LEVEL_WIDTH = 3000  # Width of each level
+POWER_UP_DURATION = 5000  # Duration of power-ups in milliseconds
 
 # Set up the display
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Platformer Game - Version 10")
+pygame.display.set_caption("Platformer Game - Version 11")
 
 # Load and set up the background image
 background = pygame.image.load('background.png')  # Use an actual image file in practice
 background = pygame.transform.scale(background, (LEVEL_WIDTH, SCREEN_HEIGHT))
 
-# Font for displaying score, level, and health
+# Font for displaying score, level, health, and power-up status
 font = pygame.font.Font(None, 36)
 
 # Player class
@@ -44,6 +46,9 @@ class Player(pygame.sprite.Sprite):
         self.on_ground = False
         self.score = 0
         self.health = 100  # Player health
+        self.invincible = False
+        self.invincible_timer = 0
+        self.extra_lives = 0
 
     def update(self):
         self.vel_y += GRAVITY
@@ -67,7 +72,12 @@ class Player(pygame.sprite.Sprite):
         self.check_enemy_collisions()
         self.check_collectible_collisions()
         self.check_boss_collisions()
+        self.check_power_up_collisions()
         self.check_level_transition()
+
+        if self.invincible:
+            if pygame.time.get_ticks() - self.invincible_timer > POWER_UP_DURATION:
+                self.invincible = False
 
     def check_platform_collisions(self):
         hits = pygame.sprite.spritecollide(self, platforms, False)
@@ -77,12 +87,19 @@ class Player(pygame.sprite.Sprite):
             self.vel_y = 0
 
     def check_enemy_collisions(self):
-        hits = pygame.sprite.spritecollide(self, enemies, False)
-        if hits:
-            self.health -= 10
-            if self.health <= 0:
-                self.rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
-                self.health = 100
+        if not self.invincible:
+            hits = pygame.sprite.spritecollide(self, enemies, False)
+            if hits:
+                self.health -= 10
+                if self.health <= 0:
+                    if self.extra_lives > 0:
+                        self.extra_lives -= 1
+                        self.health = 100
+                        self.rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
+                    else:
+                        print("Game Over!")
+                        pygame.quit()
+                        sys.exit()
 
     def check_collectible_collisions(self):
         hits = pygame.sprite.spritecollide(self, collectibles, True)
@@ -90,13 +107,26 @@ class Player(pygame.sprite.Sprite):
             self.score += 1
 
     def check_boss_collisions(self):
-        hits = pygame.sprite.spritecollide(self, bosses, False)
-        if hits:
-            self.health -= 20
-            if self.health <= 0:
-                print("You defeated the boss!")
-                pygame.quit()
-                sys.exit()
+        if not self.invincible:
+            hits = pygame.sprite.spritecollide(self, bosses, False)
+            if hits:
+                self.health -= 20
+                if self.health <= 0:
+                    print("You defeated the boss!")
+                    pygame.quit()
+                    sys.exit()
+
+    def check_power_up_collisions(self):
+        hits = pygame.sprite.spritecollide(self, power_ups, True)
+        for hit in hits:
+            if hit.type == 'speed':
+                # Temporarily increase player speed
+                pass
+            elif hit.type == 'invincibility':
+                self.invincible = True
+                self.invincible_timer = pygame.time.get_ticks()
+            elif hit.type == 'extra_life':
+                self.extra_lives += 1
 
     def check_level_transition(self):
         if self.rect.right > SCREEN_WIDTH - 50:
@@ -157,6 +187,16 @@ class Collectible(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.topleft = (x, y)
 
+# Power-Up class
+class PowerUp(pygame.sprite.Sprite):
+    def __init__(self, x, y, width, height, power_up_type):
+        super().__init__()
+        self.image = pygame.Surface((width, height))
+        self.image.fill(POWER_UP_COLOR)
+        self.rect = self.image.get_rect()
+        self.rect.topleft = (x, y)
+        self.type = power_up_type
+
 # Function to start a new level
 def start_level(level):
     global current_level
@@ -165,6 +205,7 @@ def start_level(level):
     platforms.empty()
     enemies.empty()
     collectibles.empty()
+    power_ups.empty()
     bosses.empty()
     if level == 1:
         # Level 1
@@ -182,7 +223,10 @@ def start_level(level):
         collectibles.add(Collectible(1100, 300, 30, 30))
         collectibles.add(Collectible(1500, 400, 30, 30))
         all_sprites.add(*collectibles)
-        bosses.add(Boss(2000, 300, 100, 100))
+        power_ups.add(PowerUp(2000, 400, 30, 30, 'invincibility'))
+        power_ups.add(PowerUp(2200, 400, 30, 30, 'extra_life'))
+        all_sprites.add(*power_ups)
+        bosses.add(Boss(2500, 300, 100, 100))
         all_sprites.add(*bosses)
     elif level == 2:
         # Level 2 (more complex or different layout)
@@ -200,7 +244,9 @@ def start_level(level):
         collectibles.add(Collectible(1100, 200, 30, 30))
         collectibles.add(Collectible(1500, 150, 30, 30))
         all_sprites.add(*collectibles)
-        bosses.add(Boss(2500, 400, 100, 100))
+        power_ups.add(PowerUp(2500, 400, 30, 30, 'speed'))
+        all_sprites.add(*power_ups)
+        bosses.add(Boss(3000, 400, 100, 100))
         all_sprites.add(*bosses)
 
 # Initialize level
@@ -250,13 +296,17 @@ while running:
     for entity in all_sprites:
         screen.blit(entity.image, camera.apply(entity))
 
-    # Display the score, level, and health
+    # Display the score, level, health, and power-up status
     score_text = font.render(f"Score: {player.score}", True, (255, 255, 255))
     level_text = font.render(f"Level: {current_level}", True, (255, 255, 255))
     health_text = font.render(f"Health: {player.health}", True, (255, 255, 255))
+    power_up_text = font.render(f"Invincible: {'Yes' if player.invincible else 'No'}", True, (255, 255, 255))
+    extra_lives_text = font.render(f"Extra Lives: {player.extra_lives}", True, (255, 255, 255))
     screen.blit(score_text, (10, 10))
     screen.blit(level_text, (10, 50))
     screen.blit(health_text, (10, 90))
+    screen.blit(power_up_text, (10, 130))
+    screen.blit(extra_lives_text, (10, 170))
 
     pygame.display.flip()
     clock.tick(60)
