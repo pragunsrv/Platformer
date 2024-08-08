@@ -8,6 +8,8 @@ pygame.init()
 # Constants
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
+MINI_MAP_WIDTH = 200
+MINI_MAP_HEIGHT = 150
 PLAYER_WIDTH = 50
 PLAYER_HEIGHT = 50
 PLAYER_COLOR = (0, 128, 255)
@@ -16,22 +18,24 @@ ENEMY_COLOR = (255, 255, 0)
 BOSS_COLOR = (255, 0, 0)
 COLLECTIBLE_COLOR = (0, 255, 0)
 POWER_UP_COLOR = (0, 255, 255)
+OBSTACLE_COLOR = (128, 128, 128)
 BACKGROUND_COLOR = (0, 0, 0)
 PLATFORM_MOVE_SPEED = 2
 GRAVITY = 0.5
 JUMP_STRENGTH = 10
 LEVEL_WIDTH = 3000  # Width of each level
 POWER_UP_DURATION = 5000  # Duration of power-ups in milliseconds
+OBSTACLE_MOVE_SPEED = 2
 
 # Set up the display
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Platformer Game - Version 11")
+pygame.display.set_caption("Platformer Game - Version 12")
 
 # Load and set up the background image
 background = pygame.image.load('background.png')  # Use an actual image file in practice
 background = pygame.transform.scale(background, (LEVEL_WIDTH, SCREEN_HEIGHT))
 
-# Font for displaying score, level, health, and power-up status
+# Font for displaying score, level, health, power-up status, and mini-map
 font = pygame.font.Font(None, 36)
 
 # Player class
@@ -73,6 +77,7 @@ class Player(pygame.sprite.Sprite):
         self.check_collectible_collisions()
         self.check_boss_collisions()
         self.check_power_up_collisions()
+        self.check_obstacle_collisions()
         self.check_level_transition()
 
         if self.invincible:
@@ -127,6 +132,21 @@ class Player(pygame.sprite.Sprite):
                 self.invincible_timer = pygame.time.get_ticks()
             elif hit.type == 'extra_life':
                 self.extra_lives += 1
+
+    def check_obstacle_collisions(self):
+        hits = pygame.sprite.spritecollide(self, obstacles, False)
+        if hits:
+            if not self.invincible:
+                self.health -= 20
+                if self.health <= 0:
+                    if self.extra_lives > 0:
+                        self.extra_lives -= 1
+                        self.health = 100
+                        self.rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
+                    else:
+                        print("Game Over!")
+                        pygame.quit()
+                        sys.exit()
 
     def check_level_transition(self):
         if self.rect.right > SCREEN_WIDTH - 50:
@@ -197,6 +217,28 @@ class PowerUp(pygame.sprite.Sprite):
         self.rect.topleft = (x, y)
         self.type = power_up_type
 
+# Obstacle class
+class Obstacle(pygame.sprite.Sprite):
+    def __init__(self, x, y, width, height):
+        super().__init__()
+        self.image = pygame.Surface((width, height))
+        self.image.fill(OBSTACLE_COLOR)
+        self.rect = self.image.get_rect()
+        self.rect.topleft = (x, y)
+        self.move_type = random.choice(['horizontal', 'vertical'])
+        self.direction = random.choice([-1, 1])
+        self.move_speed = OBSTACLE_MOVE_SPEED
+
+    def update(self):
+        if self.move_type == 'horizontal':
+            self.rect.x += self.direction * self.move_speed
+            if self.rect.left <= 0 or self.rect.right >= LEVEL_WIDTH:
+                self.direction *= -1
+        elif self.move_type == 'vertical':
+            self.rect.y += self.direction * self.move_speed
+            if self.rect.top <= 0 or self.rect.bottom >= SCREEN_HEIGHT:
+                self.direction *= -1
+
 # Function to start a new level
 def start_level(level):
     global current_level
@@ -206,6 +248,7 @@ def start_level(level):
     enemies.empty()
     collectibles.empty()
     power_ups.empty()
+    obstacles.empty()
     bosses.empty()
     if level == 1:
         # Level 1
@@ -226,6 +269,9 @@ def start_level(level):
         power_ups.add(PowerUp(2000, 400, 30, 30, 'invincibility'))
         power_ups.add(PowerUp(2200, 400, 30, 30, 'extra_life'))
         all_sprites.add(*power_ups)
+        obstacles.add(Obstacle(1000, 500, 50, 50))
+        obstacles.add(Obstacle(1500, 300, 50, 50))
+        all_sprites.add(*obstacles)
         bosses.add(Boss(2500, 300, 100, 100))
         all_sprites.add(*bosses)
     elif level == 2:
@@ -246,6 +292,9 @@ def start_level(level):
         all_sprites.add(*collectibles)
         power_ups.add(PowerUp(2500, 400, 30, 30, 'speed'))
         all_sprites.add(*power_ups)
+        obstacles.add(Obstacle(2000, 400, 50, 50))
+        obstacles.add(Obstacle(2200, 300, 50, 50))
+        all_sprites.add(*obstacles)
         bosses.add(Boss(3000, 400, 100, 100))
         all_sprites.add(*bosses)
 
@@ -280,6 +329,30 @@ class Camera:
 # Create a camera instance
 camera = Camera(LEVEL_WIDTH, SCREEN_HEIGHT)
 
+# Function to draw the mini-map
+def draw_mini_map():
+    mini_map_surface = pygame.Surface((MINI_MAP_WIDTH, MINI_MAP_HEIGHT))
+    mini_map_surface.fill((0, 0, 0))
+    for entity in all_sprites:
+        if isinstance(entity, Platform):
+            pygame.draw.rect(mini_map_surface, PLATFORM_COLOR,
+                             (entity.rect.x // 10, entity.rect.y // 10, entity.rect.width // 10, entity.rect.height // 10))
+        elif isinstance(entity, Collectible):
+            pygame.draw.rect(mini_map_surface, COLLECTIBLE_COLOR,
+                             (entity.rect.x // 10, entity.rect.y // 10, entity.rect.width // 10, entity.rect.height // 10))
+        elif isinstance(entity, Enemy):
+            pygame.draw.rect(mini_map_surface, ENEMY_COLOR,
+                             (entity.rect.x // 10, entity.rect.y // 10, entity.rect.width // 10, entity.rect.height // 10))
+        elif isinstance(entity, Boss):
+            pygame.draw.rect(mini_map_surface, BOSS_COLOR,
+                             (entity.rect.x // 10, entity.rect.y // 10, entity.rect.width // 10, entity.rect.height // 10))
+        elif isinstance(entity, Obstacle):
+            pygame.draw.rect(mini_map_surface, OBSTACLE_COLOR,
+                             (entity.rect.x // 10, entity.rect.y // 10, entity.rect.width // 10, entity.rect.height // 10))
+    pygame.draw.rect(mini_map_surface, PLAYER_COLOR, 
+                     (player.rect.x // 10, player.rect.y // 10, PLAYER_WIDTH // 10, PLAYER_HEIGHT // 10))
+    screen.blit(mini_map_surface, (SCREEN_WIDTH - MINI_MAP_WIDTH - 10, SCREEN_HEIGHT - MINI_MAP_HEIGHT - 10))
+
 # Main game loop
 running = True
 clock = pygame.time.Clock()
@@ -295,6 +368,9 @@ while running:
     screen.blit(background, camera.apply(pygame.Rect(0, 0, LEVEL_WIDTH, SCREEN_HEIGHT)))
     for entity in all_sprites:
         screen.blit(entity.image, camera.apply(entity))
+
+    # Draw mini-map
+    draw_mini_map()
 
     # Display the score, level, health, and power-up status
     score_text = font.render(f"Score: {player.score}", True, (255, 255, 255))
