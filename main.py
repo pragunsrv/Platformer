@@ -14,10 +14,11 @@ PLATFORM_COLOR = (255, 0, 0)
 BACKGROUND_COLOR = (0, 0, 0)
 GRAVITY = 0.5
 JUMP_STRENGTH = 10
+SCROLL_THRESHOLD = 200
 
 # Set up the display
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Platformer Game - Version 2")
+pygame.display.set_caption("Platformer Game - Version 3")
 
 # Player class
 class Player(pygame.sprite.Sprite):
@@ -75,8 +76,33 @@ all_sprites.add(player)
 platforms = pygame.sprite.Group()
 platform1 = Platform(100, 400, 200, 20)
 platform2 = Platform(400, 300, 200, 20)
-platforms.add(platform1, platform2)
-all_sprites.add(platform1, platform2)
+platform3 = Platform(800, 250, 200, 20)
+platform4 = Platform(1200, 350, 200, 20)
+platform5 = Platform(1600, 450, 200, 20)
+platforms.add(platform1, platform2, platform3, platform4, platform5)
+all_sprites.add(platform1, platform2, platform3, platform4, platform5)
+
+# Camera class
+class Camera:
+    def __init__(self, width, height):
+        self.camera = pygame.Rect(0, 0, width, height)
+        self.width = width
+        self.height = height
+
+    def apply(self, entity):
+        return entity.rect.move(self.camera.topleft)
+
+    def update(self, target):
+        x = -target.rect.centerx + int(SCREEN_WIDTH / 2)
+        y = -target.rect.centery + int(SCREEN_HEIGHT / 2)
+        x = min(0, x)  # stop scrolling at the left edge
+        y = min(0, y)  # stop scrolling at the top edge
+        x = max(-(self.width - SCREEN_WIDTH), x)  # stop scrolling at the right edge
+        y = max(-(self.height - SCREEN_HEIGHT), y)  # stop scrolling at the bottom edge
+        self.camera = pygame.Rect(x, y, self.width, self.height)
+
+# Create a camera instance
+camera = Camera(2000, 600)
 
 # Main game loop
 running = True
@@ -88,9 +114,11 @@ while running:
             running = False
 
     all_sprites.update()
+    camera.update(player)
 
     screen.fill(BACKGROUND_COLOR)
-    all_sprites.draw(screen)
+    for entity in all_sprites:
+        screen.blit(entity.image, camera.apply(entity))
 
     pygame.display.flip()
     clock.tick(60)
