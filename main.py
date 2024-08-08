@@ -21,6 +21,7 @@ POWER_UP_COLOR = (0, 255, 255)
 OBSTACLE_COLOR = (128, 128, 128)
 BACKGROUND_COLOR = (0, 0, 0)
 PLATFORM_MOVE_SPEED = 2
+ENEMY_SPEED = 3
 GRAVITY = 0.5
 JUMP_STRENGTH = 10
 LEVEL_WIDTH = 3000  # Width of each level
@@ -29,7 +30,7 @@ OBSTACLE_MOVE_SPEED = 2
 
 # Set up the display
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Platformer Game - Version 12")
+pygame.display.set_caption("Platformer Game - Version 13")
 
 # Load and set up the background image
 background = pygame.image.load('background.png')  # Use an actual image file in practice
@@ -239,27 +240,68 @@ class Obstacle(pygame.sprite.Sprite):
             if self.rect.top <= 0 or self.rect.bottom >= SCREEN_HEIGHT:
                 self.direction *= -1
 
-# Function to start a new level
+# Enemy classes with different behaviors
+class BasicEnemy(pygame.sprite.Sprite):
+    def __init__(self, x, y, width, height, move_type):
+        super().__init__()
+        self.image = pygame.Surface((width, height))
+        self.image.fill(ENEMY_COLOR)
+        self.rect = self.image.get_rect()
+        self.rect.topleft = (x, y)
+        self.move_type = move_type
+        self.direction = 1  # 1 for right, -1 for left
+        self.speed = ENEMY_SPEED
+
+    def update(self):
+        if self.move_type == 'horizontal':
+            self.rect.x += self.direction * self.speed
+            if self.rect.left <= 0 or self.rect.right >= LEVEL_WIDTH:
+                self.direction *= -1
+        elif self.move_type == 'vertical':
+            self.rect.y += self.direction * self.speed
+            if self.rect.top <= 0 or self.rect.bottom >= SCREEN_HEIGHT:
+                self.direction *= -1
+
+class JumpingEnemy(BasicEnemy):
+    def __init__(self, x, y, width, height):
+        super().__init__(x, y, width, height, 'vertical')
+        self.jump_strength = 10
+
+    def update(self):
+        if self.rect.y <= 0 or self.rect.y >= SCREEN_HEIGHT - self.rect.height:
+            self.direction *= -1
+        self.rect.y += self.direction * self.speed
+        if self.rect.y <= 0 or self.rect.y >= SCREEN_HEIGHT - self.rect.height:
+            self.direction *= -1
+
+# Initialize player, sprites, and groups
+player = Player()
+all_sprites = pygame.sprite.Group()
+all_sprites.add(player)
+platforms = pygame.sprite.Group()
+enemies = pygame.sprite.Group()
+collectibles = pygame.sprite.Group()
+power_ups = pygame.sprite.Group()
+obstacles = pygame.sprite.Group()
+bosses = pygame.sprite.Group()
+
 def start_level(level):
-    global current_level
-    current_level = level
-    all_sprites.empty()
     platforms.empty()
     enemies.empty()
     collectibles.empty()
     power_ups.empty()
     obstacles.empty()
     bosses.empty()
+    all_sprites.add(*platforms, *enemies, *collectibles, *power_ups, *obstacles, *bosses)
     if level == 1:
-        # Level 1
         platforms.add(Platform(100, 400, 200, 20))
         platforms.add(Platform(400, 300, 200, 20, 'horizontal'))
         platforms.add(Platform(800, 250, 200, 20, 'vertical'))
         platforms.add(Platform(1200, 350, 200, 20))
         platforms.add(Platform(1600, 450, 200, 20))
         all_sprites.add(*platforms)
-        enemies.add(Enemy(500, 500, 50, 50, ENEMY_COLOR, 'horizontal'))
-        enemies.add(Enemy(700, 300, 50, 50, JUMPING_ENEMY_COLOR, 'vertical'))
+        enemies.add(BasicEnemy(500, 500, 50, 50, 'horizontal'))
+        enemies.add(JumpingEnemy(700, 300, 50, 50))
         all_sprites.add(*enemies)
         collectibles.add(Collectible(300, 350, 30, 30))
         collectibles.add(Collectible(700, 200, 30, 30))
@@ -275,15 +317,14 @@ def start_level(level):
         bosses.add(Boss(2500, 300, 100, 100))
         all_sprites.add(*bosses)
     elif level == 2:
-        # Level 2 (more complex or different layout)
         platforms.add(Platform(100, 500, 200, 20))
         platforms.add(Platform(400, 400, 200, 20, 'horizontal'))
         platforms.add(Platform(800, 300, 200, 20, 'vertical'))
         platforms.add(Platform(1200, 200, 200, 20))
         platforms.add(Platform(1600, 100, 200, 20))
         all_sprites.add(*platforms)
-        enemies.add(Enemy(500, 550, 50, 50, ENEMY_COLOR, 'horizontal'))
-        enemies.add(Enemy(1000, 350, 50, 50, JUMPING_ENEMY_COLOR, 'vertical'))
+        enemies.add(BasicEnemy(500, 550, 50, 50, 'horizontal'))
+        enemies.add(JumpingEnemy(1000, 350, 50, 50))
         all_sprites.add(*enemies)
         collectibles.add(Collectible(300, 450, 30, 30))
         collectibles.add(Collectible(700, 250, 30, 30))
@@ -300,12 +341,7 @@ def start_level(level):
 
 # Initialize level
 current_level = 1
-player = Player()
-all_sprites = pygame.sprite.Group()
-all_sprites.add(player)
-
-# Start the first level
-start_level(1)
+start_level(current_level)
 
 # Camera class
 class Camera:
@@ -388,4 +424,3 @@ while running:
     clock.tick(60)
 
 pygame.quit()
-sys.exit()
