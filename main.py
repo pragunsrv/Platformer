@@ -16,13 +16,18 @@ ENEMY_COLOR = (255, 255, 0)
 JUMPING_ENEMY_COLOR = (255, 0, 255)
 COLLECTIBLE_COLOR = (0, 255, 0)
 BACKGROUND_COLOR = (0, 0, 0)
+PLATFORM_MOVE_SPEED = 2
 GRAVITY = 0.5
 JUMP_STRENGTH = 10
 LEVEL_WIDTH = 2000  # Width of each level
 
 # Set up the display
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Platformer Game - Version 8")
+pygame.display.set_caption("Platformer Game - Version 9")
+
+# Load and set up the background image
+background = pygame.image.load('background.png')  # Use an actual image file in practice
+background = pygame.transform.scale(background, (LEVEL_WIDTH, SCREEN_HEIGHT))
 
 # Font for displaying score and level
 font = pygame.font.Font(None, 36)
@@ -91,12 +96,27 @@ class Player(pygame.sprite.Sprite):
 
 # Platform class
 class Platform(pygame.sprite.Sprite):
-    def __init__(self, x, y, width, height):
+    def __init__(self, x, y, width, height, move_type=None):
         super().__init__()
         self.image = pygame.Surface((width, height))
         self.image.fill(PLATFORM_COLOR)
         self.rect = self.image.get_rect()
         self.rect.topleft = (x, y)
+        self.move_type = move_type
+        self.original_y = y
+        self.original_x = x
+        self.move_speed = PLATFORM_MOVE_SPEED
+        self.direction = 1  # 1 for down/right, -1 for up/left
+
+    def update(self):
+        if self.move_type == 'horizontal':
+            self.rect.x += self.direction * self.move_speed
+            if self.rect.left <= 0 or self.rect.right >= LEVEL_WIDTH:
+                self.direction *= -1
+        elif self.move_type == 'vertical':
+            self.rect.y += self.direction * self.move_speed
+            if self.rect.top <= 0 or self.rect.bottom >= SCREEN_HEIGHT:
+                self.direction *= -1
 
 # Basic Enemy class
 class Enemy(pygame.sprite.Sprite):
@@ -143,8 +163,8 @@ def start_level(level):
     if level == 1:
         # Level 1
         platforms.add(Platform(100, 400, 200, 20))
-        platforms.add(Platform(400, 300, 200, 20))
-        platforms.add(Platform(800, 250, 200, 20))
+        platforms.add(Platform(400, 300, 200, 20, 'horizontal'))
+        platforms.add(Platform(800, 250, 200, 20, 'vertical'))
         platforms.add(Platform(1200, 350, 200, 20))
         platforms.add(Platform(1600, 450, 200, 20))
         all_sprites.add(*platforms)
@@ -159,8 +179,8 @@ def start_level(level):
     elif level == 2:
         # Level 2 (more complex or different layout)
         platforms.add(Platform(100, 500, 200, 20))
-        platforms.add(Platform(400, 400, 200, 20))
-        platforms.add(Platform(800, 300, 200, 20))
+        platforms.add(Platform(400, 400, 200, 20, 'horizontal'))
+        platforms.add(Platform(800, 300, 200, 20, 'vertical'))
         platforms.add(Platform(1200, 200, 200, 20))
         platforms.add(Platform(1600, 100, 200, 20))
         all_sprites.add(*platforms)
@@ -216,7 +236,7 @@ while running:
     all_sprites.update()
     camera.update(player)
 
-    screen.fill(BACKGROUND_COLOR)
+    screen.blit(background, camera.apply(pygame.Rect(0, 0, LEVEL_WIDTH, SCREEN_HEIGHT)))
     for entity in all_sprites:
         screen.blit(entity.image, camera.apply(entity))
 
