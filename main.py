@@ -29,10 +29,12 @@ POWER_UP_DURATION = 5000  # Duration of power-ups in milliseconds
 OBSTACLE_MOVE_SPEED = 2
 WEATHER_EFFECT_INTENSITY = 5  # Rain intensity
 WEATHER_EFFECT_COLOR = (0, 0, 255, 100)  # Semi-transparent blue for rain
+DIFFICULTY_LEVEL = 'medium'  # Options: 'easy', 'medium', 'hard'
+LIGHT_INTENSITY = 0.5  # Light intensity for dynamic lighting
 
 # Set up the display
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Platformer Game - Version 14")
+pygame.display.set_caption("Platformer Game - Version 15")
 
 # Load and set up the background image
 background = pygame.image.load('background.png')  # Use an actual image file in practice
@@ -337,6 +339,31 @@ def start_level(level):
         all_sprites.add(*obstacles)
         bosses.add(Boss(3000, 400, 100, 100))
         all_sprites.add(*bosses)
+    elif level == 4:
+        platforms.add(Platform(100, 500, 200, 20, 'horizontal'))
+        platforms.add(Platform(400, 400, 200, 20, 'vertical'))
+        platforms.add(Platform(800, 300, 200, 20))
+        platforms.add(Platform(1200, 200, 200, 20, 'horizontal'))
+        platforms.add(Platform(1600, 100, 200, 20, 'vertical'))
+        all_sprites.add(*platforms)
+        enemies.add(BasicEnemy(500, 550, 50, 50, 'horizontal'))
+        enemies.add(JumpingEnemy(1000, 350, 50, 50))
+        all_sprites.add(*enemies)
+        collectibles.add(Collectible(300, 450, 30, 30))
+        collectibles.add(Collectible(700, 250, 30, 30))
+        collectibles.add(Collectible(1100, 200, 30, 30))
+        collectibles.add(Collectible(1500, 150, 30, 30))
+        all_sprites.add(*collectibles)
+        power_ups.add(PowerUp(2500, 400, 30, 30, 'invincibility'))
+        power_ups.add(PowerUp(2700, 400, 30, 30, 'speed'))
+        power_ups.add(PowerUp(2900, 400, 30, 30, 'extra_life'))
+        all_sprites.add(*power_ups)
+        obstacles.add(Obstacle(2000, 400, 50, 50))
+        obstacles.add(Obstacle(2200, 300, 50, 50))
+        obstacles.add(Obstacle(2400, 200, 50, 50))
+        all_sprites.add(*obstacles)
+        bosses.add(Boss(3000, 400, 100, 100))
+        all_sprites.add(*bosses)
 
 # Initialize level
 current_level = 1
@@ -371,45 +398,38 @@ def draw_mini_map():
     for entity in all_sprites:
         if isinstance(entity, Platform):
             pygame.draw.rect(mini_map_surface, PLATFORM_COLOR,
-                             (entity.rect.x // 10, entity.rect.y // 10, entity.rect.width // 10, entity.rect.height // 10))
-        elif isinstance(entity, Collectible):
-            pygame.draw.rect(mini_map_surface, COLLECTIBLE_COLOR,
-                             (entity.rect.x // 10, entity.rect.y // 10, entity.rect.width // 10, entity.rect.height // 10))
-        elif isinstance(entity, Enemy):
-            pygame.draw.rect(mini_map_surface, ENEMY_COLOR,
-                             (entity.rect.x // 10, entity.rect.y // 10, entity.rect.width // 10, entity.rect.height // 10))
+                             (entity.rect.x // 10, entity.rect.y // 10,
+                              entity.rect.width // 10, entity.rect.height // 10))
+        elif isinstance(entity, Player):
+            pygame.draw.rect(mini_map_surface, PLAYER_COLOR,
+                             (entity.rect.x // 10, entity.rect.y // 10,
+                              entity.rect.width // 10, entity.rect.height // 10))
         elif isinstance(entity, Boss):
             pygame.draw.rect(mini_map_surface, BOSS_COLOR,
-                             (entity.rect.x // 10, entity.rect.y // 10, entity.rect.width // 10, entity.rect.height // 10))
-        elif isinstance(entity, Obstacle):
-            pygame.draw.rect(mini_map_surface, OBSTACLE_COLOR,
-                             (entity.rect.x // 10, entity.rect.y // 10, entity.rect.width // 10, entity.rect.height // 10))
-    pygame.draw.rect(mini_map_surface, PLAYER_COLOR, 
-                     (player.rect.x // 10, player.rect.y // 10, PLAYER_WIDTH // 10, PLAYER_HEIGHT // 10))
-    screen.blit(mini_map_surface, (SCREEN_WIDTH - MINI_MAP_WIDTH - 10, SCREEN_HEIGHT - MINI_MAP_HEIGHT - 10))
+                             (entity.rect.x // 10, entity.rect.y // 10,
+                              entity.rect.width // 10, entity.rect.height // 10))
+    screen.blit(pygame.transform.scale(mini_map_surface, (MINI_MAP_WIDTH * 2, MINI_MAP_HEIGHT * 2)), (0, SCREEN_HEIGHT - MINI_MAP_HEIGHT * 2))
 
-# Function to draw dynamic weather effects
+# Function to draw weather effects
 def draw_weather_effects():
-    weather_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
     for _ in range(WEATHER_EFFECT_INTENSITY):
-        x = random.randint(0, SCREEN_WIDTH)
-        y = random.randint(0, SCREEN_HEIGHT)
-        pygame.draw.line(weather_surface, WEATHER_EFFECT_COLOR, (x, y), (x, y + 5), 1)
-    screen.blit(weather_surface, (0, 0))
+        pygame.draw.line(screen, WEATHER_EFFECT_COLOR,
+                         (random.randint(0, SCREEN_WIDTH), random.randint(0, SCREEN_HEIGHT)),
+                         (random.randint(0, SCREEN_WIDTH), random.randint(0, SCREEN_HEIGHT)), 1)
 
 # Main game loop
-running = True
 clock = pygame.time.Clock()
-
-while running:
+while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            running = False
+            pygame.quit()
+            sys.exit()
 
     all_sprites.update()
     camera.update(player)
-
-    screen.blit(background, camera.apply(pygame.Rect(0, 0, LEVEL_WIDTH, SCREEN_HEIGHT)), camera.camera)
+    
+    screen.fill(BACKGROUND_COLOR)
+    screen.blit(background, (0, 0), pygame.Rect(camera.camera.left, camera.camera.top, SCREEN_WIDTH, SCREEN_HEIGHT))
     draw_weather_effects()
     for sprite in all_sprites:
         screen.blit(sprite.image, camera.apply(sprite))
