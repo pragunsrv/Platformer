@@ -29,12 +29,12 @@ POWER_UP_DURATION = 5000  # Duration of power-ups in milliseconds
 OBSTACLE_MOVE_SPEED = 2
 WEATHER_EFFECT_INTENSITY = 5  # Rain intensity
 WEATHER_EFFECT_COLOR = (0, 0, 255, 100)  # Semi-transparent blue for rain
-DIFFICULTY_LEVEL = 'medium'  # Options: 'easy', 'medium', 'hard'
-LIGHT_INTENSITY = 0.5  # Light intensity for dynamic lighting
+DIFFICULTY_LEVEL = 'hard'  # Options: 'easy', 'medium', 'hard'
+LIGHT_INTENSITY = 0.7  # Light intensity for dynamic lighting
 
 # Set up the display
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Platformer Game - Version 15")
+pygame.display.set_caption("Platformer Game - Version 16")
 
 # Load and set up the background image
 background = pygame.image.load('background.png')  # Use an actual image file in practice
@@ -42,6 +42,7 @@ background = pygame.transform.scale(background, (LEVEL_WIDTH, SCREEN_HEIGHT))
 
 # Font for displaying score, level, health, power-up status, and mini-map
 font = pygame.font.Font(None, 36)
+large_font = pygame.font.Font(None, 72)
 
 # Player class
 class Player(pygame.sprite.Sprite):
@@ -58,6 +59,7 @@ class Player(pygame.sprite.Sprite):
         self.invincible = False
         self.invincible_timer = 0
         self.extra_lives = 0
+        self.achievements = []
 
     def update(self):
         self.vel_y += GRAVITY
@@ -84,6 +86,7 @@ class Player(pygame.sprite.Sprite):
         self.check_power_up_collisions()
         self.check_obstacle_collisions()
         self.check_level_transition()
+        self.check_achievements()
 
         if self.invincible:
             if pygame.time.get_ticks() - self.invincible_timer > POWER_UP_DURATION:
@@ -107,6 +110,7 @@ class Player(pygame.sprite.Sprite):
                         self.health = 100
                         self.rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
                     else:
+                        self.achievements.append('Game Over')
                         print("Game Over!")
                         pygame.quit()
                         sys.exit()
@@ -115,13 +119,16 @@ class Player(pygame.sprite.Sprite):
         hits = pygame.sprite.spritecollide(self, collectibles, True)
         for hit in hits:
             self.score += 1
-
+            if self.score >= 10:
+                self.achievements.append('Collector')
+    
     def check_boss_collisions(self):
         if not self.invincible:
             hits = pygame.sprite.spritecollide(self, bosses, False)
             if hits:
                 self.health -= 20
                 if self.health <= 0:
+                    self.achievements.append('Boss Slayer')
                     print("You defeated the boss!")
                     pygame.quit()
                     sys.exit()
@@ -149,6 +156,7 @@ class Player(pygame.sprite.Sprite):
                         self.health = 100
                         self.rect.center = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
                     else:
+                        self.achievements.append('Game Over')
                         print("Game Over!")
                         pygame.quit()
                         sys.exit()
@@ -158,9 +166,17 @@ class Player(pygame.sprite.Sprite):
             if current_level == 1:
                 start_level(2)
             elif current_level == 2:
-                print("You completed the game!")
+                start_level(3)
+            elif current_level == 3:
+                start_level(4)
+            elif current_level == 4:
+                print("Congratulations! You've completed the game!")
                 pygame.quit()
                 sys.exit()
+
+    def check_achievements(self):
+        if 'Collector' in self.achievements and 'Boss Slayer' in self.achievements:
+            print("Achievement Unlocked: Master of the Game!")
 
 # Platform class
 class Platform(pygame.sprite.Sprite):
@@ -186,29 +202,42 @@ class Platform(pygame.sprite.Sprite):
             if self.rect.top <= 0 or self.rect.bottom >= SCREEN_HEIGHT:
                 self.direction *= -1
 
+# Advanced Enemy class
+class AdvancedEnemy(pygame.sprite.Sprite):
+    def __init__(self, x, y, width, height):
+        super().__init__()
+        self.image = pygame.Surface((width, height))
+        self.image.fill(ENEMY_COLOR)
+        self.rect = self.image.get_rect()
+        self.rect.topleft = (x, y)
+        self.move_speed = ENEMY_SPEED
+        self.direction = 1  # 1 for right, -1 for left
+
+    def update(self):
+        self.rect.x += self.direction * self.move_speed
+        if self.rect.left <= 0 or self.rect.right >= LEVEL_WIDTH:
+            self.direction *= -1
+
 # Boss class
-class Boss(pygame.sprite.Sprite):
+class FinalBoss(pygame.sprite.Sprite):
     def __init__(self, x, y, width, height):
         super().__init__()
         self.image = pygame.Surface((width, height))
         self.image.fill(BOSS_COLOR)
         self.rect = self.image.get_rect()
         self.rect.topleft = (x, y)
-        self.health = 500
-        self.move_speed = 2
+        self.health = 1000
+        self.move_speed = 4
         self.direction = 1  # 1 for right, -1 for left
-        self.attack_pattern = random.choice(['shoot', 'charge'])
+        self.attack_pattern = 'complex'
 
     def update(self):
         self.rect.x += self.direction * self.move_speed
         if self.rect.left <= 0 or self.rect.right >= LEVEL_WIDTH:
             self.direction *= -1
         
-        if self.attack_pattern == 'shoot':
-            # Boss shoots periodically
-            pass
-        elif self.attack_pattern == 'charge':
-            # Boss charges towards the player
+        if self.attack_pattern == 'complex':
+            # Complex behavior for final boss
             pass
 
 # Collectible class
@@ -220,15 +249,15 @@ class Collectible(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.topleft = (x, y)
 
-# Power-Up class
+# PowerUp class
 class PowerUp(pygame.sprite.Sprite):
-    def __init__(self, x, y, width, height, power_up_type):
+    def __init__(self, x, y, width, height, type):
         super().__init__()
         self.image = pygame.Surface((width, height))
         self.image.fill(POWER_UP_COLOR)
         self.rect = self.image.get_rect()
         self.rect.topleft = (x, y)
-        self.type = power_up_type
+        self.type = type
 
 # Obstacle class
 class Obstacle(pygame.sprite.Sprite):
@@ -238,31 +267,8 @@ class Obstacle(pygame.sprite.Sprite):
         self.image.fill(OBSTACLE_COLOR)
         self.rect = self.image.get_rect()
         self.rect.topleft = (x, y)
-        self.move_type = random.choice(['horizontal', 'vertical'])
-        self.direction = random.choice([-1, 1])
-        self.move_speed = OBSTACLE_MOVE_SPEED
 
-    def update(self):
-        if self.move_type == 'horizontal':
-            self.rect.x += self.direction * self.move_speed
-            if self.rect.left <= 0 or self.rect.right >= LEVEL_WIDTH:
-                self.direction *= -1
-        elif self.move_type == 'vertical':
-            self.rect.y += self.direction * self.move_speed
-            if self.rect.top <= 0 or self.rect.bottom >= SCREEN_HEIGHT:
-                self.direction *= -1
-
-# Initialize player, sprites, and groups
-player = Player()
-all_sprites = pygame.sprite.Group()
-all_sprites.add(player)
-platforms = pygame.sprite.Group()
-enemies = pygame.sprite.Group()
-collectibles = pygame.sprite.Group()
-power_ups = pygame.sprite.Group()
-obstacles = pygame.sprite.Group()
-bosses = pygame.sprite.Group()
-
+# Start Level function
 def start_level(level):
     platforms.empty()
     enemies.empty()
@@ -278,8 +284,8 @@ def start_level(level):
         platforms.add(Platform(1200, 350, 200, 20))
         platforms.add(Platform(1600, 450, 200, 20))
         all_sprites.add(*platforms)
-        enemies.add(BasicEnemy(500, 500, 50, 50, 'horizontal'))
-        enemies.add(JumpingEnemy(700, 300, 50, 50))
+        enemies.add(AdvancedEnemy(500, 500, 50, 50))
+        enemies.add(AdvancedEnemy(700, 300, 50, 50))
         all_sprites.add(*enemies)
         collectibles.add(Collectible(300, 350, 30, 30))
         collectibles.add(Collectible(700, 200, 30, 30))
@@ -292,78 +298,9 @@ def start_level(level):
         obstacles.add(Obstacle(1000, 500, 50, 50))
         obstacles.add(Obstacle(1500, 300, 50, 50))
         all_sprites.add(*obstacles)
-        bosses.add(Boss(2500, 300, 100, 100))
+        bosses.add(FinalBoss(2500, 300, 100, 100))
         all_sprites.add(*bosses)
-    elif level == 2:
-        platforms.add(Platform(100, 500, 200, 20))
-        platforms.add(Platform(400, 400, 200, 20, 'horizontal'))
-        platforms.add(Platform(800, 300, 200, 20, 'vertical'))
-        platforms.add(Platform(1200, 200, 200, 20))
-        platforms.add(Platform(1600, 100, 200, 20))
-        all_sprites.add(*platforms)
-        enemies.add(BasicEnemy(500, 550, 50, 50, 'horizontal'))
-        enemies.add(JumpingEnemy(1000, 350, 50, 50))
-        all_sprites.add(*enemies)
-        collectibles.add(Collectible(300, 450, 30, 30))
-        collectibles.add(Collectible(700, 250, 30, 30))
-        collectibles.add(Collectible(1100, 200, 30, 30))
-        collectibles.add(Collectible(1500, 150, 30, 30))
-        all_sprites.add(*collectibles)
-        power_ups.add(PowerUp(2500, 400, 30, 30, 'speed'))
-        all_sprites.add(*power_ups)
-        obstacles.add(Obstacle(2000, 400, 50, 50))
-        obstacles.add(Obstacle(2200, 300, 50, 50))
-        all_sprites.add(*obstacles)
-        bosses.add(Boss(3000, 400, 100, 100))
-        all_sprites.add(*bosses)
-    elif level == 3:
-        platforms.add(Platform(100, 500, 200, 20, 'horizontal'))
-        platforms.add(Platform(400, 400, 200, 20))
-        platforms.add(Platform(800, 300, 200, 20, 'vertical'))
-        platforms.add(Platform(1200, 200, 200, 20))
-        platforms.add(Platform(1600, 100, 200, 20))
-        all_sprites.add(*platforms)
-        enemies.add(BasicEnemy(500, 550, 50, 50, 'horizontal'))
-        enemies.add(JumpingEnemy(1000, 350, 50, 50))
-        all_sprites.add(*enemies)
-        collectibles.add(Collectible(300, 450, 30, 30))
-        collectibles.add(Collectible(700, 250, 30, 30))
-        collectibles.add(Collectible(1100, 200, 30, 30))
-        collectibles.add(Collectible(1500, 150, 30, 30))
-        all_sprites.add(*collectibles)
-        power_ups.add(PowerUp(2500, 400, 30, 30, 'invincibility'))
-        power_ups.add(PowerUp(2700, 400, 30, 30, 'speed'))
-        all_sprites.add(*power_ups)
-        obstacles.add(Obstacle(2000, 400, 50, 50))
-        obstacles.add(Obstacle(2200, 300, 50, 50))
-        all_sprites.add(*obstacles)
-        bosses.add(Boss(3000, 400, 100, 100))
-        all_sprites.add(*bosses)
-    elif level == 4:
-        platforms.add(Platform(100, 500, 200, 20, 'horizontal'))
-        platforms.add(Platform(400, 400, 200, 20, 'vertical'))
-        platforms.add(Platform(800, 300, 200, 20))
-        platforms.add(Platform(1200, 200, 200, 20, 'horizontal'))
-        platforms.add(Platform(1600, 100, 200, 20, 'vertical'))
-        all_sprites.add(*platforms)
-        enemies.add(BasicEnemy(500, 550, 50, 50, 'horizontal'))
-        enemies.add(JumpingEnemy(1000, 350, 50, 50))
-        all_sprites.add(*enemies)
-        collectibles.add(Collectible(300, 450, 30, 30))
-        collectibles.add(Collectible(700, 250, 30, 30))
-        collectibles.add(Collectible(1100, 200, 30, 30))
-        collectibles.add(Collectible(1500, 150, 30, 30))
-        all_sprites.add(*collectibles)
-        power_ups.add(PowerUp(2500, 400, 30, 30, 'invincibility'))
-        power_ups.add(PowerUp(2700, 400, 30, 30, 'speed'))
-        power_ups.add(PowerUp(2900, 400, 30, 30, 'extra_life'))
-        all_sprites.add(*power_ups)
-        obstacles.add(Obstacle(2000, 400, 50, 50))
-        obstacles.add(Obstacle(2200, 300, 50, 50))
-        obstacles.add(Obstacle(2400, 200, 50, 50))
-        all_sprites.add(*obstacles)
-        bosses.add(Boss(3000, 400, 100, 100))
-        all_sprites.add(*bosses)
+    # Define more levels with advanced features as needed
 
 # Initialize level
 current_level = 1
@@ -404,7 +341,7 @@ def draw_mini_map():
             pygame.draw.rect(mini_map_surface, PLAYER_COLOR,
                              (entity.rect.x // 10, entity.rect.y // 10,
                               entity.rect.width // 10, entity.rect.height // 10))
-        elif isinstance(entity, Boss):
+        elif isinstance(entity, FinalBoss):
             pygame.draw.rect(mini_map_surface, BOSS_COLOR,
                              (entity.rect.x // 10, entity.rect.y // 10,
                               entity.rect.width // 10, entity.rect.height // 10))
@@ -416,6 +353,18 @@ def draw_weather_effects():
         pygame.draw.line(screen, WEATHER_EFFECT_COLOR,
                          (random.randint(0, SCREEN_WIDTH), random.randint(0, SCREEN_HEIGHT)),
                          (random.randint(0, SCREEN_WIDTH), random.randint(0, SCREEN_HEIGHT)), 1)
+
+# Function to draw the HUD
+def draw_hud():
+    score_text = font.render(f"Score: {player.score}", True, (255, 255, 255))
+    health_text = font.render(f"Health: {player.health}", True, (255, 255, 255))
+    extra_lives_text = font.render(f"Extra Lives: {player.extra_lives}", True, (255, 255, 255))
+    achievements_text = large_font.render(f"Achievements: {', '.join(player.achievements)}", True, (255, 255, 255))
+
+    screen.blit(score_text, (10, 10))
+    screen.blit(health_text, (10, 50))
+    screen.blit(extra_lives_text, (10, 90))
+    screen.blit(achievements_text, (10, SCREEN_HEIGHT - 100))
 
 # Main game loop
 clock = pygame.time.Clock()
@@ -434,14 +383,7 @@ while True:
     for sprite in all_sprites:
         screen.blit(sprite.image, camera.apply(sprite))
     draw_mini_map()
-    
-    score_text = font.render(f"Score: {player.score}", True, (255, 255, 255))
-    health_text = font.render(f"Health: {player.health}", True, (255, 255, 255))
-    extra_lives_text = font.render(f"Extra Lives: {player.extra_lives}", True, (255, 255, 255))
-    
-    screen.blit(score_text, (10, 10))
-    screen.blit(health_text, (10, 50))
-    screen.blit(extra_lives_text, (10, 90))
+    draw_hud()
     
     pygame.display.flip()
     clock.tick(60)
