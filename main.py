@@ -20,7 +20,7 @@ LEVEL_WIDTH = 2000  # Width of each level
 
 # Set up the display
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Platformer Game - Version 6")
+pygame.display.set_caption("Platformer Game - Version 7")
 
 # Font for displaying score and level
 font = pygame.font.Font(None, 36)
@@ -96,7 +96,7 @@ class Platform(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.topleft = (x, y)
 
-# Enemy class
+# Enemy class with basic AI
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, x, y, width, height):
         super().__init__()
@@ -104,6 +104,13 @@ class Enemy(pygame.sprite.Sprite):
         self.image.fill(ENEMY_COLOR)
         self.rect = self.image.get_rect()
         self.rect.topleft = (x, y)
+        self.direction = 1  # 1 for right, -1 for left
+        self.speed = 2
+
+    def update(self):
+        self.rect.x += self.direction * self.speed
+        if self.rect.left <= 0 or self.rect.right >= LEVEL_WIDTH:
+            self.direction *= -1
 
 # Collectible class
 class Collectible(pygame.sprite.Sprite):
