@@ -27,10 +27,12 @@ JUMP_STRENGTH = 10
 LEVEL_WIDTH = 3000  # Width of each level
 POWER_UP_DURATION = 5000  # Duration of power-ups in milliseconds
 OBSTACLE_MOVE_SPEED = 2
+WEATHER_EFFECT_INTENSITY = 5  # Rain intensity
+WEATHER_EFFECT_COLOR = (0, 0, 255, 100)  # Semi-transparent blue for rain
 
 # Set up the display
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Platformer Game - Version 13")
+pygame.display.set_caption("Platformer Game - Version 14")
 
 # Load and set up the background image
 background = pygame.image.load('background.png')  # Use an actual image file in practice
@@ -193,11 +195,19 @@ class Boss(pygame.sprite.Sprite):
         self.health = 500
         self.move_speed = 2
         self.direction = 1  # 1 for right, -1 for left
+        self.attack_pattern = random.choice(['shoot', 'charge'])
 
     def update(self):
         self.rect.x += self.direction * self.move_speed
         if self.rect.left <= 0 or self.rect.right >= LEVEL_WIDTH:
             self.direction *= -1
+        
+        if self.attack_pattern == 'shoot':
+            # Boss shoots periodically
+            pass
+        elif self.attack_pattern == 'charge':
+            # Boss charges towards the player
+            pass
 
 # Collectible class
 class Collectible(pygame.sprite.Sprite):
@@ -239,40 +249,6 @@ class Obstacle(pygame.sprite.Sprite):
             self.rect.y += self.direction * self.move_speed
             if self.rect.top <= 0 or self.rect.bottom >= SCREEN_HEIGHT:
                 self.direction *= -1
-
-# Enemy classes with different behaviors
-class BasicEnemy(pygame.sprite.Sprite):
-    def __init__(self, x, y, width, height, move_type):
-        super().__init__()
-        self.image = pygame.Surface((width, height))
-        self.image.fill(ENEMY_COLOR)
-        self.rect = self.image.get_rect()
-        self.rect.topleft = (x, y)
-        self.move_type = move_type
-        self.direction = 1  # 1 for right, -1 for left
-        self.speed = ENEMY_SPEED
-
-    def update(self):
-        if self.move_type == 'horizontal':
-            self.rect.x += self.direction * self.speed
-            if self.rect.left <= 0 or self.rect.right >= LEVEL_WIDTH:
-                self.direction *= -1
-        elif self.move_type == 'vertical':
-            self.rect.y += self.direction * self.speed
-            if self.rect.top <= 0 or self.rect.bottom >= SCREEN_HEIGHT:
-                self.direction *= -1
-
-class JumpingEnemy(BasicEnemy):
-    def __init__(self, x, y, width, height):
-        super().__init__(x, y, width, height, 'vertical')
-        self.jump_strength = 10
-
-    def update(self):
-        if self.rect.y <= 0 or self.rect.y >= SCREEN_HEIGHT - self.rect.height:
-            self.direction *= -1
-        self.rect.y += self.direction * self.speed
-        if self.rect.y <= 0 or self.rect.y >= SCREEN_HEIGHT - self.rect.height:
-            self.direction *= -1
 
 # Initialize player, sprites, and groups
 player = Player()
@@ -338,6 +314,29 @@ def start_level(level):
         all_sprites.add(*obstacles)
         bosses.add(Boss(3000, 400, 100, 100))
         all_sprites.add(*bosses)
+    elif level == 3:
+        platforms.add(Platform(100, 500, 200, 20, 'horizontal'))
+        platforms.add(Platform(400, 400, 200, 20))
+        platforms.add(Platform(800, 300, 200, 20, 'vertical'))
+        platforms.add(Platform(1200, 200, 200, 20))
+        platforms.add(Platform(1600, 100, 200, 20))
+        all_sprites.add(*platforms)
+        enemies.add(BasicEnemy(500, 550, 50, 50, 'horizontal'))
+        enemies.add(JumpingEnemy(1000, 350, 50, 50))
+        all_sprites.add(*enemies)
+        collectibles.add(Collectible(300, 450, 30, 30))
+        collectibles.add(Collectible(700, 250, 30, 30))
+        collectibles.add(Collectible(1100, 200, 30, 30))
+        collectibles.add(Collectible(1500, 150, 30, 30))
+        all_sprites.add(*collectibles)
+        power_ups.add(PowerUp(2500, 400, 30, 30, 'invincibility'))
+        power_ups.add(PowerUp(2700, 400, 30, 30, 'speed'))
+        all_sprites.add(*power_ups)
+        obstacles.add(Obstacle(2000, 400, 50, 50))
+        obstacles.add(Obstacle(2200, 300, 50, 50))
+        all_sprites.add(*obstacles)
+        bosses.add(Boss(3000, 400, 100, 100))
+        all_sprites.add(*bosses)
 
 # Initialize level
 current_level = 1
@@ -389,6 +388,15 @@ def draw_mini_map():
                      (player.rect.x // 10, player.rect.y // 10, PLAYER_WIDTH // 10, PLAYER_HEIGHT // 10))
     screen.blit(mini_map_surface, (SCREEN_WIDTH - MINI_MAP_WIDTH - 10, SCREEN_HEIGHT - MINI_MAP_HEIGHT - 10))
 
+# Function to draw dynamic weather effects
+def draw_weather_effects():
+    weather_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+    for _ in range(WEATHER_EFFECT_INTENSITY):
+        x = random.randint(0, SCREEN_WIDTH)
+        y = random.randint(0, SCREEN_HEIGHT)
+        pygame.draw.line(weather_surface, WEATHER_EFFECT_COLOR, (x, y), (x, y + 5), 1)
+    screen.blit(weather_surface, (0, 0))
+
 # Main game loop
 running = True
 clock = pygame.time.Clock()
@@ -401,25 +409,20 @@ while running:
     all_sprites.update()
     camera.update(player)
 
-    screen.blit(background, camera.apply(pygame.Rect(0, 0, LEVEL_WIDTH, SCREEN_HEIGHT)))
-    for entity in all_sprites:
-        screen.blit(entity.image, camera.apply(entity))
-
-    # Draw mini-map
+    screen.blit(background, camera.apply(pygame.Rect(0, 0, LEVEL_WIDTH, SCREEN_HEIGHT)), camera.camera)
+    draw_weather_effects()
+    for sprite in all_sprites:
+        screen.blit(sprite.image, camera.apply(sprite))
     draw_mini_map()
-
-    # Display the score, level, health, and power-up status
+    
     score_text = font.render(f"Score: {player.score}", True, (255, 255, 255))
-    level_text = font.render(f"Level: {current_level}", True, (255, 255, 255))
     health_text = font.render(f"Health: {player.health}", True, (255, 255, 255))
-    power_up_text = font.render(f"Invincible: {'Yes' if player.invincible else 'No'}", True, (255, 255, 255))
     extra_lives_text = font.render(f"Extra Lives: {player.extra_lives}", True, (255, 255, 255))
+    
     screen.blit(score_text, (10, 10))
-    screen.blit(level_text, (10, 50))
-    screen.blit(health_text, (10, 90))
-    screen.blit(power_up_text, (10, 130))
-    screen.blit(extra_lives_text, (10, 170))
-
+    screen.blit(health_text, (10, 50))
+    screen.blit(extra_lives_text, (10, 90))
+    
     pygame.display.flip()
     clock.tick(60)
 
